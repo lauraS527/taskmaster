@@ -84,22 +84,6 @@ async function login(req, res) {
   }
 }
 
-async function me(req, res) {
-  try {
-    const [rows] = await db.query(
-      'SELECT id, name, email, avatar_url, created_at FROM users WHERE id = ?',
-      [req.user.id]
-    );
-    if (!rows[0]) {
-      return res.status(404).json({ message: 'Usuario no encontrado' });
-    }
-    res.json(rows[0]);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error del servidor' });
-  }
-}
-
 async function forgotPassword(req, res) {
   // Siempre se responde lo mismo, exista o no el correo,
   // para que nadie pueda averiguar quién está registrado.
@@ -175,4 +159,4 @@ async function resetPassword(req, res) {
   }
 }
 
-module.exports = { register, login, me, forgotPassword, resetPassword };
+   module.exports = { register, login, forgotPassword, resetPassword };
