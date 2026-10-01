@@ -2,10 +2,10 @@
   "name": "backend",
   "version": "1.0.0",
   "main": "src/server.js",
-    "scripts": {
+  "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
-    "test": "jest"  
+    "test": "jest"
   },
   "keywords": [],
   "author": "",
@@ -15,7 +15,8 @@
     "cors": "^2.8.6",
     "dotenv": "^18.0.5",
     "express": "^5.2.1",
-    "mysql2": "^3.24.5"
+    "mysql2": "^3.24.5",
+    "nodemailer": "^10.0.13"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

@@ -1,6 +1,12 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../config/db');
+const crypto = require('crypto');
+const { sendPasswordResetEmail } = require('../services/email.service');
+
+function hashToken(token) {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -94,4 +100,79 @@ async function me(req, res) {
   }
 }
 
-module.exports = { register, login, me };
+async function forgotPassword(req, res) {
+  // Siempre se responde lo mismo, exista o no el correo,
+  // para que nadie pueda averiguar quién está registrado.
+  const genericResponse = {
+    message: 'Si el correo está registrado, te enviamos un enlace para recuperar tu contraseña'
+  };
+
+  try {
+    const { email } = req.body;
+
+    if (typeof email !== 'string' || !email.trim()) {
+      return res.status(400).json({ message: 'El correo es obligatorio' });
+    }
+
+    const [rows] = await db.query(
+      'SELECT id, email FROM users WHERE email = ?',
+      [email.trim().toLowerCase()]
+    );
+    const user = rows[0];
+
+    if (user) {
+      const token = crypto.randomBytes(32).toString('hex');
+
+      // Un solo código activo por usuario
+      await db.query('DELETE FROM password_resets WHERE user_id = ?', [user.id]);
+      await db.query(
+        'INSERT INTO password_resets (user_id, token_hash, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 1 HOUR))',
+        [user.id, hashToken(token)]
+      );
+
+      const resetUrl = `${process.env.CLIENT_URL}/reset-password?token=${token}`;
+      await sendPasswordResetEmail(user.email, resetUrl);
+    }
+
+    res.json(genericResponse);
+  } catch (error) {
+    // Si falla el envío, se registra en el servidor pero la respuesta
+    // sigue siendo la misma, para no revelar nada.
+    console.error(error);
+    res.json(genericResponse);
+  }
+}
+
+async function resetPassword(req, res) {
+  try {
+    const { token, password } = req.body;
+
+    if (typeof token !== 'string' || typeof password !== 'string' || !token || !password) {
+      return res.status(400).json({ message: 'El código y la nueva contraseña son obligatorios' });
+    }
+    if (password.length < 8) {
+      return res.status(400).json({ message: 'La contraseña debe tener al menos 8 caracteres' });
+    }
+
+    const [rows] = await db.query(
+      'SELECT id, user_id FROM password_resets WHERE token_hash = ? AND expires_at > NOW()',
+      [hashToken(token)]
+    );
+    const reset = rows[0];
+
+    if (!reset) {
+      return res.status(400).json({ message: 'El enlace no es válido o ya venció' });
+    }
+
+    const newHash = await bcrypt.hash(password, 10);
+    await db.query('UPDATE users SET password_hash = ? WHERE id = ?', [newHash, reset.user_id]);
+    await db.query('DELETE FROM password_resets WHERE user_id = ?', [reset.user_id]);
+
+    res.json({ message: 'Contraseña actualizada. Ya puedes iniciar sesión' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+}
+
+module.exports = { register, login, me, forgotPassword, resetPassword };
