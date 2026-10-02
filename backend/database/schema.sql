@@ -26,6 +26,7 @@ CREATE TABLE categories (
   id INT AUTO_INCREMENT PRIMARY KEY,
   user_id INT NOT NULL,                         -- a qué usuario pertenece la categoría
   name VARCHAR(50) NOT NULL,
+  UNIQUE (user_id, name),                    -- un mismo usuario no puede tener dos categorías con el mismo nombre
   FOREIGN KEY (user_id) REFERENCES users(id)
     ON DELETE CASCADE                           -- si se borra el usuario, se borran sus categorías
 );
