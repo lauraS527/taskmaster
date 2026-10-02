@@ -5,7 +5,12 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
-    "test": "jest"
+    "test": "jest --runInBand",
+    "db:test": "node database/setup-test-db.js"
+  },
+  "jest": {
+  "testEnvironment": "node",
+  "setupFiles": ["<rootDir>/tests/setupEnv.js"]
   },
   "keywords": [],
   "author": "",

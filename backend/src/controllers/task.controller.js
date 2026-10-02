@@ -16,7 +16,7 @@ const TASK_FROM = 'FROM tasks t LEFT JOIN categories c ON c.id = t.category_id';
 // Orden permitido. Esta lista cerrada evita inyectar SQL por el parámetro "sort".
 // En due_date, las tareas sin fecha quedan siempre al final.
 const SORT_COLUMNS = {
-  due_date: 't.due_date IS NULL, t.due_date',
+  due_date: 't.due_date',
   priority: 't.priority',
   created_at: 't.created_at',
   title: 't.title'
@@ -192,11 +192,14 @@ async function getTasks(req, res) {
     // Sin "sort" se muestran primero las tareas más recientes
     const direction = (order ?? (sort === undefined ? 'desc' : 'asc')) === 'desc' ? 'DESC' : 'ASC';
 
+// Las tareas sin fecha quedan siempre al final, sea el orden asc o desc
+    const nullsLast = sortKey === 'due_date' ? 't.due_date IS NULL, ' : '';
+
     const [rows] = await db.query(
-      `SELECT ${TASK_FIELDS} ${TASK_FROM}
-       WHERE ${where.join(' AND ')}
-       ORDER BY ${SORT_COLUMNS[sortKey]} ${direction}, t.id ${direction}`,
-      params
+        `SELECT ${TASK_FIELDS} ${TASK_FROM}
+        WHERE ${where.join(' AND ')}
+        ORDER BY ${nullsLast}${SORT_COLUMNS[sortKey]} ${direction}, t.id ${direction}`,
+        params
     );
 
     res.json(rows);
