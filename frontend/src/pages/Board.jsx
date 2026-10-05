@@ -3,7 +3,8 @@ import api from '../api/client';
 import Column from '../components/Column';
 import TaskForm from '../components/TaskForm';
 import CategoryManager from '../components/CategoryManager';
-import { STATUSES } from '../constants/tasks';
+import FilterBar from '../components/FilterBar';
+import { DEFAULT_FILTERS, STATUSES } from '../constants/tasks';
 
 const CONNECTION_ERROR = 'No se pudo conectar con el servidor';
 
@@ -12,7 +13,9 @@ const CONNECTION_ERROR = 'No se pudo conectar con el servidor';
 export default function Board() {
   const [tasks, setTasks] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  const [reloadKey, setReloadKey] = useState(0); // al cambiarlo, se vuelven a pedir las tareas
+  const [loading, setLoading] = useState(true); // solo para la primera carga
   const [loadError, setLoadError] = useState('');
   const [actionError, setActionError] = useState('');
   const [movingId, setMovingId] = useState(null); // tarea que se está moviendo ahora
@@ -24,24 +27,63 @@ export default function Board() {
 
   const formOpen = editing !== null;
   const editingTask = editing && editing !== 'new' ? editing : null;
+  const hasFilters = Boolean(filters.priority || filters.category_id || filters.status);
 
+  // Si se filtra por estado, solo se muestra esa columna (las otras quedarían vacías)
+  const visibleStatuses = STATUSES.filter(
+    (status) => !filters.status || status.value === filters.status
+  );
+
+  // Pide la lista de tareas otra vez, respetando los filtros activos
+  function refresh() {
+    setReloadKey((key) => key + 1);
+  }
+
+  // Las categorías se piden una sola vez
   useEffect(() => {
-    let ignore = false; // evita guardar datos si la pantalla ya se cerró
+    let ignore = false;
 
-    async function loadData() {
+    async function loadCategories() {
       try {
-        // Las dos peticiones salen a la vez, en lugar de esperar una y luego la otra
-        const [tasksResponse, categoriesResponse] = await Promise.all([
-          api.get('/tasks'),
-          api.get('/categories')
-        ]);
+        const { data } = await api.get('/categories');
         if (!ignore) {
-          setTasks(tasksResponse.data);
-          setCategories(categoriesResponse.data);
+          setCategories(data);
         }
       } catch {
         if (!ignore) {
-          setLoadError('No se pudieron cargar tus datos');
+          setLoadError('No se pudieron cargar tus categorías');
+        }
+      }
+    }
+
+    loadCategories();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  // Las tareas se piden al abrir la pantalla y cada vez que cambian los filtros o reloadKey
+  useEffect(() => {
+    let ignore = false; // si los filtros cambian rápido, se descarta la respuesta vieja
+
+    async function loadTasks() {
+      try {
+        const [sort, order] = filters.sort.split(':');
+        const params = { sort, order };
+        if (filters.priority) params.priority = filters.priority;
+        if (filters.category_id) params.category_id = filters.category_id;
+        if (filters.status) params.status = filters.status;
+
+        // axios convierte params en "?sort=due_date&order=asc&priority=alta..."
+        const { data } = await api.get('/tasks', { params });
+        if (!ignore) {
+          setTasks(data);
+          setLoadError('');
+        }
+      } catch {
+        if (!ignore) {
+          setLoadError('No se pudieron cargar tus tareas');
         }
       } finally {
         if (!ignore) {
@@ -50,12 +92,12 @@ export default function Board() {
       }
     }
 
-    loadData();
+    loadTasks();
 
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [filters, reloadKey]);
 
   function handleNew() {
     setFormError('');
@@ -72,15 +114,12 @@ export default function Board() {
     setSaving(true);
     try {
       if (editingTask) {
-        const { data } = await api.patch(`/tasks/${editingTask.id}`, values);
-        setTasks((current) => current.map((item) => (item.id === data.id ? data : item)));
+        await api.patch(`/tasks/${editingTask.id}`, values);
       } else {
-        const { data } = await api.post('/tasks', values);
-        // Se crea una lista nueva con la tarea al inicio. En React nunca se modifica
-        // el estado "a mano": se entrega una copia nueva y React redibuja.
-        setTasks((current) => [data, ...current]);
+        await api.post('/tasks', values);
       }
       setEditing(null);
+      refresh();
     } catch (err) {
       setFormError(err.response?.data?.message || CONNECTION_ERROR);
     } finally {
@@ -92,8 +131,8 @@ export default function Board() {
     setActionError('');
     setMovingId(task.id);
     try {
-      const { data } = await api.patch(`/tasks/${task.id}`, { status });
-      setTasks((current) => current.map((item) => (item.id === data.id ? data : item)));
+      await api.patch(`/tasks/${task.id}`, { status });
+      refresh();
     } catch (err) {
       setActionError(err.response?.data?.message || CONNECTION_ERROR);
     } finally {
@@ -110,10 +149,10 @@ export default function Board() {
     setActionError('');
     try {
       await api.delete(`/tasks/${task.id}`);
-      setTasks((current) => current.filter((item) => item.id !== task.id));
       if (editingTask && editingTask.id === task.id) {
         setEditing(null);
       }
+      refresh();
     } catch (err) {
       setActionError(err.response?.data?.message || CONNECTION_ERROR);
     }
@@ -144,14 +183,11 @@ export default function Board() {
     try {
       await api.delete(`/categories/${category.id}`);
       setCategories((current) => current.filter((item) => item.id !== category.id));
-      // El backend dejó esas tareas sin categoría; se refleja igual en pantalla
-      setTasks((current) =>
-        current.map((task) =>
-          task.category_id === category.id
-            ? { ...task, category_id: null, category_name: null }
-            : task
-        )
+      // Si se estaba filtrando por esa categoría, se quita el filtro
+      setFilters((current) =>
+        current.category_id === String(category.id) ? { ...current, category_id: '' } : current
       );
+      refresh();
     } catch (err) {
       setActionError(err.response?.data?.message || CONNECTION_ERROR);
     }
@@ -196,8 +232,25 @@ export default function Board() {
 
       {!loading && !loadError && (
         <>
-          <div className="board">
-            {STATUSES.map((status) => (
+          <FilterBar
+            filters={filters}
+            categories={categories}
+            hasFilters={hasFilters}
+            onChange={setFilters}
+            onClear={() => setFilters({ ...DEFAULT_FILTERS, sort: filters.sort })}
+          />
+
+          {/* aria-live avisa a los lectores de pantalla cuando cambia el resultado */}
+          <p className="filter-summary" aria-live="polite">
+            {tasks.length} {tasks.length === 1 ? 'tarea' : 'tareas'}
+          </p>
+
+          {hasFilters && tasks.length === 0 && (
+            <p className="column-empty">Ninguna tarea coincide con los filtros.</p>
+          )}
+
+          <div className={visibleStatuses.length === 1 ? 'board single' : 'board'}>
+            {visibleStatuses.map((status) => (
               <Column
                 key={status.value}
                 status={status}
