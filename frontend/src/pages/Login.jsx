@@ -69,6 +69,10 @@ export default function Login() {
         </button>
 
         <p className="auth-footer">
+          <Link to="/forgot-password">¿Olvidaste tu contraseña?</Link>
+        </p>
+
+        <p className="auth-footer">
           ¿No tienes cuenta? <Link to="/register">Regístrate</Link>
         </p>
       </form>
