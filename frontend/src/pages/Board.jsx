@@ -1,33 +1,47 @@
 import { useEffect, useState } from 'react';
 import api from '../api/client';
 import Column from '../components/Column';
+import TaskForm from '../components/TaskForm';
+import CategoryManager from '../components/CategoryManager';
 import { STATUSES } from '../constants/tasks';
 
 const CONNECTION_ERROR = 'No se pudo conectar con el servidor';
 
-// Pantalla principal. Es la dueña de los datos: pide las tareas al backend,
-// las guarda en su estado y se las reparte a las columnas.
+// Pantalla principal. Es la dueña de los datos: pide tareas y categorías al backend,
+// las guarda en su estado y se las reparte a los componentes de adentro.
 export default function Board() {
   const [tasks, setTasks] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [actionError, setActionError] = useState('');
-  const [newTitle, setNewTitle] = useState('');
-  const [adding, setAdding] = useState(false);
   const [movingId, setMovingId] = useState(null); // tarea que se está moviendo ahora
+
+  // Formulario: editing vale null (cerrado), 'new' (crear) o la tarea que se edita
+  const [editing, setEditing] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
+
+  const formOpen = editing !== null;
+  const editingTask = editing && editing !== 'new' ? editing : null;
 
   useEffect(() => {
     let ignore = false; // evita guardar datos si la pantalla ya se cerró
 
-    async function loadTasks() {
+    async function loadData() {
       try {
-        const { data } = await api.get('/tasks');
+        // Las dos peticiones salen a la vez, en lugar de esperar una y luego la otra
+        const [tasksResponse, categoriesResponse] = await Promise.all([
+          api.get('/tasks'),
+          api.get('/categories')
+        ]);
         if (!ignore) {
-          setTasks(data);
+          setTasks(tasksResponse.data);
+          setCategories(categoriesResponse.data);
         }
       } catch {
         if (!ignore) {
-          setLoadError('No se pudieron cargar tus tareas');
+          setLoadError('No se pudieron cargar tus datos');
         }
       } finally {
         if (!ignore) {
@@ -36,32 +50,41 @@ export default function Board() {
       }
     }
 
-    loadTasks();
+    loadData();
 
     return () => {
       ignore = true;
     };
   }, []);
 
-  async function handleAdd(event) {
-    event.preventDefault();
-    const title = newTitle.trim();
-    if (!title) {
-      return;
-    }
+  function handleNew() {
+    setFormError('');
+    setEditing('new');
+  }
 
-    setActionError('');
-    setAdding(true);
+  function handleEdit(task) {
+    setFormError('');
+    setEditing(task);
+  }
+
+  async function handleSave(values) {
+    setFormError('');
+    setSaving(true);
     try {
-      const { data } = await api.post('/tasks', { title });
-      // Se crea una lista nueva con la tarea al inicio. En React nunca se modifica
-      // el estado "a mano": se entrega una copia nueva y React redibuja.
-      setTasks((current) => [data, ...current]);
-      setNewTitle('');
+      if (editingTask) {
+        const { data } = await api.patch(`/tasks/${editingTask.id}`, values);
+        setTasks((current) => current.map((item) => (item.id === data.id ? data : item)));
+      } else {
+        const { data } = await api.post('/tasks', values);
+        // Se crea una lista nueva con la tarea al inicio. En React nunca se modifica
+        // el estado "a mano": se entrega una copia nueva y React redibuja.
+        setTasks((current) => [data, ...current]);
+      }
+      setEditing(null);
     } catch (err) {
-      setActionError(err.response?.data?.message || CONNECTION_ERROR);
+      setFormError(err.response?.data?.message || CONNECTION_ERROR);
     } finally {
-      setAdding(false);
+      setSaving(false);
     }
   }
 
@@ -69,9 +92,7 @@ export default function Board() {
     setActionError('');
     setMovingId(task.id);
     try {
-      // PATCH cambia solo el campo enviado: aquí, el estado
       const { data } = await api.patch(`/tasks/${task.id}`, { status });
-      // Se reemplaza la tarea vieja por la que devolvió el backend
       setTasks((current) => current.map((item) => (item.id === data.id ? data : item)));
     } catch (err) {
       setActionError(err.response?.data?.message || CONNECTION_ERROR);
@@ -80,27 +101,84 @@ export default function Board() {
     }
   }
 
+  async function handleDelete(task) {
+    // window.confirm abre el cuadro de confirmación del navegador
+    if (!window.confirm(`¿Eliminar la tarea "${task.title}"? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+
+    setActionError('');
+    try {
+      await api.delete(`/tasks/${task.id}`);
+      setTasks((current) => current.filter((item) => item.id !== task.id));
+      if (editingTask && editingTask.id === task.id) {
+        setEditing(null);
+      }
+    } catch (err) {
+      setActionError(err.response?.data?.message || CONNECTION_ERROR);
+    }
+  }
+
+  // Devuelve true si la categoría se creó, para que CategoryManager limpie su campo
+  async function handleAddCategory(name) {
+    setActionError('');
+    try {
+      const { data } = await api.post('/categories', { name });
+      setCategories((current) =>
+        [...current, data].sort((a, b) => a.name.localeCompare(b.name, 'es'))
+      );
+      return true;
+    } catch (err) {
+      setActionError(err.response?.data?.message || CONNECTION_ERROR);
+      return false;
+    }
+  }
+
+  async function handleDeleteCategory(category) {
+    const message = `¿Eliminar la categoría "${category.name}"? Las tareas que la usan no se borran: quedarán sin categoría.`;
+    if (!window.confirm(message)) {
+      return;
+    }
+
+    setActionError('');
+    try {
+      await api.delete(`/categories/${category.id}`);
+      setCategories((current) => current.filter((item) => item.id !== category.id));
+      // El backend dejó esas tareas sin categoría; se refleja igual en pantalla
+      setTasks((current) =>
+        current.map((task) =>
+          task.category_id === category.id
+            ? { ...task, category_id: null, category_name: null }
+            : task
+        )
+      );
+    } catch (err) {
+      setActionError(err.response?.data?.message || CONNECTION_ERROR);
+    }
+  }
+
   return (
     <>
-      <h1>Tablero</h1>
+      <div className="board-header">
+        <h1>Tablero</h1>
+        {!formOpen && (
+          <button type="button" onClick={handleNew}>
+            + Nueva tarea
+          </button>
+        )}
+      </div>
 
-      <form className="quick-add" onSubmit={handleAdd}>
-        <label htmlFor="new-task" className="visually-hidden">
-          Título de la nueva tarea
-        </label>
-        <input
-          id="new-task"
-          type="text"
-          placeholder="Escribe una tarea nueva..."
-          value={newTitle}
-          onChange={(event) => setNewTitle(event.target.value)}
-          maxLength={150}
-          required
+      {formOpen && (
+        <TaskForm
+          key={editingTask ? editingTask.id : 'new'}
+          task={editingTask}
+          categories={categories}
+          saving={saving}
+          error={formError}
+          onSubmit={handleSave}
+          onCancel={() => setEditing(null)}
         />
-        <button type="submit" disabled={adding}>
-          {adding ? 'Agregando...' : 'Agregar'}
-        </button>
-      </form>
+      )}
 
       {actionError && (
         <p className="form-error" role="alert">
@@ -108,7 +186,7 @@ export default function Board() {
         </p>
       )}
 
-      {loading && <p>Cargando tareas...</p>}
+      {loading && <p>Cargando tablero...</p>}
 
       {loadError && (
         <p className="form-error" role="alert">
@@ -117,17 +195,27 @@ export default function Board() {
       )}
 
       {!loading && !loadError && (
-        <div className="board">
-          {STATUSES.map((status) => (
-            <Column
-              key={status.value}
-              status={status}
-              tasks={tasks.filter((task) => task.status === status.value)}
-              movingId={movingId}
-              onMove={handleMove}
-            />
-          ))}
-        </div>
+        <>
+          <div className="board">
+            {STATUSES.map((status) => (
+              <Column
+                key={status.value}
+                status={status}
+                tasks={tasks.filter((task) => task.status === status.value)}
+                movingId={movingId}
+                onMove={handleMove}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+              />
+            ))}
+          </div>
+
+          <CategoryManager
+            categories={categories}
+            onAdd={handleAddCategory}
+            onDelete={handleDeleteCategory}
+          />
+        </>
       )}
     </>
   );

@@ -20,7 +20,7 @@ function formatDate(isoDate) {
   });
 }
 
-export default function TaskCard({ task, moving, onMove }) {
+export default function TaskCard({ task, moving, onMove, onEdit, onDelete }) {
   // La tarea solo puede ir a la columna anterior o a la siguiente
   const index = STATUSES.findIndex((status) => status.value === task.status);
   const previous = STATUSES[index - 1];
@@ -70,6 +70,25 @@ export default function TaskCard({ task, moving, onMove }) {
             {next.label} →
           </button>
         )}
+      </div>
+
+      <div className="task-actions">
+        <button
+          type="button"
+          className="secondary"
+          onClick={() => onEdit(task)}
+          aria-label={`Editar "${task.title}"`}
+        >
+          Editar
+        </button>
+        <button
+          type="button"
+          className="danger"
+          onClick={() => onDelete(task)}
+          aria-label={`Eliminar "${task.title}"`}
+        >
+          Eliminar
+        </button>
       </div>
     </article>
   );

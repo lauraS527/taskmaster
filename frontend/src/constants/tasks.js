@@ -5,3 +5,9 @@ export const STATUSES = [
   { value: 'en_progreso', label: 'En progreso' },
   { value: 'completada', label: 'Completada' }
 ];
+
+export const PRIORITIES = [
+  { value: 'baja', label: 'Baja' },
+  { value: 'media', label: 'Media' },
+  { value: 'alta', label: 'Alta' }
+];

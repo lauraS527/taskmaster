@@ -1,7 +1,7 @@
 import TaskCard from './TaskCard';
 
 // Una columna del tablero: recibe el estado que representa y solo las tareas de ese estado.
-export default function Column({ status, tasks, movingId, onMove }) {
+export default function Column({ status, tasks, movingId, onMove, onEdit, onDelete }) {
   const headingId = `column-${status.value}`;
 
   return (
@@ -15,7 +15,14 @@ export default function Column({ status, tasks, movingId, onMove }) {
       ) : (
         // "key" ayuda a React a distinguir una tarjeta de otra cuando la lista cambia
         tasks.map((task) => (
-          <TaskCard key={task.id} task={task} moving={movingId === task.id} onMove={onMove} />
+          <TaskCard
+            key={task.id}
+            task={task}
+            moving={movingId === task.id}
+            onMove={onMove}
+            onEdit={onEdit}
+            onDelete={onDelete}
+          />
         ))
       )}
     </section>
