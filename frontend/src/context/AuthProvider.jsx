@@ -34,6 +34,12 @@ export default function AuthProvider({ children }) {
     saveSession(data);
   }
 
+  // Se usa cuando la persona edita su perfil: mantiene la sesión al día
+  function updateUser(newUser) {
+    localStorage.setItem('user', JSON.stringify(newUser));
+    setUser(newUser);
+  }
+
   function logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -42,7 +48,7 @@ export default function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ token, user, login, register, logout }}>
+    <AuthContext.Provider value={{ token, user, login, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

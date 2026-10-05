@@ -4,7 +4,9 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import Layout from './components/Layout';
 import Home from './pages/Home';
+import Profile from './pages/Profile';
 
 // Aquí se decide qué pantalla se muestra según la dirección de la barra del navegador.
 export default function App() {
@@ -17,7 +19,11 @@ export default function App() {
 
       {/* Todo lo que esté dentro de ProtectedRoute exige sesión */}
       <Route element={<ProtectedRoute />}>
-        <Route path="/" element={<Home />} />
+        {/* El Layout dibuja la barra de navegación y, debajo, la pantalla que toque */}
+        <Route element={<Layout />}>
+          <Route path="/" element={<Home />} />
+          <Route path="/profile" element={<Profile />} />
+        </Route>
       </Route>
 
       {/* Cualquier otra dirección vuelve al inicio */}

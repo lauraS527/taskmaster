@@ -126,3 +126,77 @@ button:disabled {
   color: #0b5d46;
   background-color: #e3fbf3;
 }
+
+/* ---------- Barra de navegación ---------- */
+
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  padding: 0.75rem 1.5rem;
+  color: #fff;
+  background-color: var(--first-color);
+}
+
+.navbar-brand {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.navbar-links {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+
+.navbar-links a {
+  padding: 0.25rem 0.5rem;
+  color: #fff;
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+}
+
+.navbar-links a:hover,
+.navbar-links a.active {
+  border-bottom-color: #fff;
+}
+
+.navbar-links button {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid #fff;
+  background-color: transparent;
+}
+
+.navbar-links button:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* ---------- Contenido de las pantallas con sesión ---------- */
+
+.page {
+  max-width: 56rem;
+  margin: 0 auto;
+  padding: 1.5rem 1rem;
+}
+
+.page h1 {
+  margin-bottom: 0.5rem;
+  color: var(--first-color);
+}
+
+.auth-card h2 {
+  color: var(--first-color);
+}
+
+.profile-since {
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.profile-card {
+  max-width: none;
+  margin-bottom: 1.5rem;
+}
