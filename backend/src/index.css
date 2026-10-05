@@ -1,0 +1,121 @@
+:root {
+  --first-color: rgb(167, 26, 113);
+  --second-color: rgb(100, 245, 208);
+  --terciary-color: rgb(248, 104, 171);
+  --fourth-color: rgb(196, 28, 90);
+  --text-color: #050505;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-height: 100vh;
+  background-color: var(--second-color);
+  color: var(--text-color);
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  color: #fff;
+  background-color: var(--first-color);
+}
+
+button:hover {
+  background-color: var(--fourth-color);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ---------- Login y registro ---------- */
+
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 24rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 2rem;
+  border-radius: 12px;
+  background-color: #fff;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.auth-card h1 {
+  color: var(--first-color);
+}
+
+.auth-subtitle {
+  margin-bottom: 0.75rem;
+  color: #444;
+}
+
+.auth-card label {
+  margin-top: 0.5rem;
+  font-weight: 600;
+}
+
+.auth-card input {
+  padding: 0.7rem;
+  border: 1px solid #bbb;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.auth-card input:focus {
+  outline: 2px solid var(--terciary-color);
+  border-color: var(--terciary-color);
+}
+
+.auth-card button {
+  margin-top: 1rem;
+}
+
+.form-error {
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  color: var(--fourth-color);
+  background-color: #fde8f0;
+}
+
+.auth-footer {
+  margin-top: 0.75rem;
+  text-align: center;
+}
+
+.auth-footer a {
+  color: var(--first-color);
+  font-weight: 600;
+}
+
+/* ---------- Inicio provisional ---------- */
+
+.home-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  text-align: center;
+}
